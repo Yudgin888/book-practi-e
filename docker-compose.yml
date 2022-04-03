@@ -49,6 +49,9 @@ services:
   postgres:
     image: postgres:14.2
     container_name: book-postgres
+    #!!!
+    ports:
+      - "5432:5432"
     env_file:
       - .env
     environment:
