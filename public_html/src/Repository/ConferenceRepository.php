@@ -4,26 +4,28 @@ namespace App\Repository;
 
 use App\Entity\Conference;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\OptimisticLockException;
-use Doctrine\ORM\ORMException;
+use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @method Conference|null find($id, $lockMode = null, $lockVersion = null)
  * @method Conference|null findOneBy(array $criteria, array $orderBy = null)
- * @method Conference[]    findAll()
  * @method Conference[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
 class ConferenceRepository extends ServiceEntityRepository
 {
+    /**
+     * @param ManagerRegistry $registry
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Conference::class);
     }
 
     /**
-     * @throws ORMException
-     * @throws OptimisticLockException
+     * @param Conference $entity
+     * @param bool $flush
+     * @return void
      */
     public function add(Conference $entity, bool $flush = true): void
     {
@@ -34,8 +36,9 @@ class ConferenceRepository extends ServiceEntityRepository
     }
 
     /**
-     * @throws ORMException
-     * @throws OptimisticLockException
+     * @param Conference $entity
+     * @param bool $flush
+     * @return void
      */
     public function remove(Conference $entity, bool $flush = true): void
     {
@@ -45,32 +48,26 @@ class ConferenceRepository extends ServiceEntityRepository
         }
     }
 
-    // /**
-    //  * @return Conference[] Returns an array of Conference objects
-    //  */
-    /*
-    public function findByExampleField($value)
+    /**
+     * @return Conference[]
+     */
+    public function findAll(): array
     {
-        return $this->createQueryBuilder('c')
-            ->andWhere('c.exampleField = :val')
-            ->setParameter('val', $value)
-            ->orderBy('c.id', 'ASC')
-            ->setMaxResults(10)
-            ->getQuery()
-            ->getResult()
-        ;
+        return $this->findBy([], ['year' => 'ASC', 'city' => 'ASC']);
     }
-    */
 
-    /*
-    public function findOneBySomeField($value): ?Conference
+    /**
+     * @param string $slug
+     * @return array
+     * @throws NonUniqueResultException
+     */
+    public function findBySlug(string $slug): array
     {
+        //return $this->findBy(['slug' => $slug], ['year' => 'ASC', 'city' => 'ASC']);
         return $this->createQueryBuilder('c')
-            ->andWhere('c.exampleField = :val')
-            ->setParameter('val', $value)
+            ->andWhere('c.slug = :val')
+            ->setParameter('val', $slug)
             ->getQuery()
-            ->getOneOrNullResult()
-        ;
+            ->getOneOrNullResult();
     }
-    */
 }

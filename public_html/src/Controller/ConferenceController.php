@@ -25,29 +25,28 @@ class ConferenceController extends AbstractController
     }
 
     /**
-     * @param int $id
+     * @param string $slug
+     * @param Request $request
      * @param ConferenceRepository $conferenceRepository
      * @param CommentRepository $commentRepository
      * @return Response
      */
-    #[Route('/conference/{id}', name: 'conference')]
-    public function show(int $id, Request $request, ConferenceRepository $conferenceRepository, CommentRepository $commentRepository): Response
+    #[Route('/conference/{slug}', name: 'conference')]
+    public function show(string $slug, Request $request, ConferenceRepository $conferenceRepository, CommentRepository $commentRepository): Response
     {
         $offset = max(0, $request->query->getInt('offset', 0));
-        $conference = $conferenceRepository->find($id);
+        $conference = $conferenceRepository->findOneBy(['slug' => $slug]);
         if (!$conference) {
             $this->redirectToRoute('homepage');
         }
         $paginator = $commentRepository->getCommentPaginator($conference, $offset);
 
         return $this->render('conference/show.html.twig', [
-            'conference' => $conferenceRepository->find($id),
+            'conference' => $conferenceRepository->findOneBy(['slug' => $slug]),
             /*'comments' => $commentRepository->findBy(['conference' => $id], ['createdAt' => 'DESC'])*/
             'comments' => $paginator,
             'previous' => $offset - CommentRepository::PAGINATOR_PER_PAGE,
             'next' => min(count($paginator), $offset + CommentRepository::PAGINATOR_PER_PAGE),
         ]);
     }
-
-
 }
