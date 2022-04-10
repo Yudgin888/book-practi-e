@@ -6,6 +6,7 @@ use App\Entity\Comment;
 use App\Form\CommentFormType;
 use App\Repository\CommentRepository;
 use App\Repository\ConferenceRepository;
+use App\SpamChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -13,6 +14,10 @@ use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 class ConferenceController extends AbstractController
 {
@@ -43,13 +48,13 @@ class ConferenceController extends AbstractController
      * @param Request $request
      * @param ConferenceRepository $conferenceRepository
      * @param CommentRepository $commentRepository
+     * @param SpamChecker $spamChecker
      * @param string $photoDir
      * @return Response
-     * @throws Exception
      */
     #[Route('/conference/{slug}', name: 'conference')]
     public function show(string            $slug, Request $request, ConferenceRepository $conferenceRepository,
-                         CommentRepository $commentRepository, string $photoDir): Response
+                         CommentRepository $commentRepository, SpamChecker $spamChecker, string $photoDir): Response
     {
         $conference = $conferenceRepository->findOneBy(['slug' => $slug]);
         if (!$conference) {
@@ -62,19 +67,44 @@ class ConferenceController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $comment->setConference($conference);
             if ($photo = $form['photo']->getData()) {
-                $filename = bin2hex(random_bytes(6)) . '.' . $photo->guessExtension();
                 try {
+                    $filename = bin2hex(random_bytes(6)) . '.' . $photo->guessExtension();
                     $photo->move($photoDir, $filename);
-                } catch (FileException $e) {
-                    // unable to upload the photo, give up
+                    $comment->setPhotoFilename($filename);
+                } catch (Exception $e) {
+                    $this->addFlash(
+                        'error',
+                        'Unable to upload the photo:' . $e->getMessage()
+                    );
                 }
-                $comment->setPhotoFilename($filename);
             }
 
             $this->entityManager->persist($comment);
-            $this->entityManager->flush();
-            return $this->redirectToRoute('conference', ['slug' => $slug]);
 
+            try {
+                // проверка на спам
+                $context = [
+                    'user_ip' => $request->getClientIp(),
+                    'user_agent' => $request->headers->get('user-agent'),
+                    'referrer' => $request->headers->get('referer'),
+                    'permalink' => $request->getUri(),
+                ];
+                if (2 === $spamChecker->getSpamScore($comment, $context)) {
+                    throw new \RuntimeException('Blatant spam, go away!');
+                }
+            } catch (ClientExceptionInterface|RedirectionExceptionInterface|ServerExceptionInterface|TransportExceptionInterface $e) {
+                $this->addFlash(
+                    'error',
+                    $e->getMessage()
+                );
+            }
+
+            $this->entityManager->flush();
+            $this->addFlash(
+                'success',
+                'Comment was saved'
+            );
+            return $this->redirectToRoute('conference', ['slug' => $slug]);
         }
 
         $offset = max(0, $request->query->getInt('offset', 0));
