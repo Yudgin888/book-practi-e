@@ -6,7 +6,7 @@ use App\Entity\Comment;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class CommentCrudController extends AbstractCrudController
@@ -27,7 +27,7 @@ class CommentCrudController extends AbstractCrudController
     {
         return [
             TextField::new('author')->setMaxLength(255)->setRequired(true),
-            TextareaField::new('text')->setRequired(true),
+            TextEditorField::new('text')->setRequired(true),
             TextField::new('email')->setMaxLength(255)->setRequired(true),
             DateTimeField::new('createdAt')->setRequired(true),
             TextField::new('photoFilename')->setMaxLength(255)->setRequired(false),
