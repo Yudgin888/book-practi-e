@@ -7,7 +7,7 @@ RUN rm -rf /tmp/pear
 RUN docker-php-ext-enable redis
 
 RUN apt -y update
-RUN apt install -y libpq-dev unzip
+RUN apt install -y libpq-dev
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/local/pgsql
 RUN docker-php-ext-install pdo_pgsql
 
@@ -15,6 +15,9 @@ RUN apt -y update
 RUN apt install -y libicu-dev
 RUN docker-php-ext-configure intl
 RUN docker-php-ext-install intl
+
+RUN apt-get install -y libzip-dev zip
+RUN docker-php-ext-install zip
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/bin --filename=composer --quiet
 ENV COMPOSER_ALLOW_SUPERUSER 1

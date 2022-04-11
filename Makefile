@@ -20,6 +20,7 @@ docker-down-clear:
 	docker-compose down -v --remove-orphans
 
 book-test:
+	docker exec -it book-php-cli php bin/console doctrine:fixtures:load -n --env=test
 	docker exec -it book-php-cli php bin/phpunit
 
 book-cache:
