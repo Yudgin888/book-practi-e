@@ -51,3 +51,9 @@ services:
         tags:
             - { name: 'doctrine.orm.entity_listener', event: 'prePersist', entity: 'App\Entity\Conference' }
             - { name: 'doctrine.orm.entity_listener', event: 'preUpdate', entity: 'App\Entity\Conference' }
+
+    App\MessageHandler\CommentMessageHandler:
+        tags:
+            -   name: messenger.message_handler
+                # only needed if can't be guessed by type-hint
+                handles: App\Message\CommentMessage

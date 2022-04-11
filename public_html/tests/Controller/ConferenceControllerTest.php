@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace Controller;
 
+use App\Repository\CommentRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Panther\PantherTestCase;
 
-//class ConferenceControllerTest extends WebTestCase // для имитации браузера
-class ConferenceControllerTest extends PantherTestCase
+class ConferenceControllerTest extends WebTestCase // для имитации браузера
+//class ConferenceControllerTest extends PantherTestCase
 {
     public function testIndex(): void
     {
         // $client предназначена для имитации браузера
-        //$client = static::createClient();
+        $client = static::createClient();
 
         // использование реального браузера
         // Переменная окружения SYMFONY_DEFAULT_ROUTE_URL содержит URL-адрес локального веб-сервера
-        $_SERVER['SYMFONY_DEFAULT_ROUTE_URL'] ??= 'https://localhost';
-        $client = static::createPantherClient(['external_base_uri' => $_SERVER['SYMFONY_DEFAULT_ROUTE_URL']]);
+        /*$_SERVER['SYMFONY_DEFAULT_ROUTE_URL'] ??= 'https://localhost';
+        $client = static::createPantherClient(['external_base_uri' => $_SERVER['SYMFONY_DEFAULT_ROUTE_URL']]);*/
+
         $client->request('GET', '/');
 
         // проверяет, что главная страница возвращает статус 200 в HTTP-ответе
@@ -35,11 +38,15 @@ class ConferenceControllerTest extends PantherTestCase
         $client->submitForm('Submit', [
             'comment_form[author]' => 'Fabien',
             'comment_form[text]' => 'Some feedback from an automated functional test',
-            'comment_form[email]' => 'me@automat.ed',
+            'comment_form[email]' => $email = 'me@automat.ed',
             'comment_form[photo]' => dirname(__DIR__, 2) . '/public/images/under-construction.gif',
         ]);
 
-        self::assertResponseRedirects();
+        // simulate comment validation
+        $comment = self::$container->get(CommentRepository::class)->findOneByEmail($email);
+        $comment->setState('published');
+        self::$container->get(EntityManagerInterface::class)->flush();
+
         $client->followRedirect();
         self::assertSelectorExists('div:contains("There are 2 comments")');
     }

@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Comment;
 use App\Form\CommentFormType;
+use App\Message\CommentMessage;
 use App\Repository\CommentRepository;
 use App\Repository\ConferenceRepository;
 use App\SpamChecker;
@@ -13,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -22,13 +24,16 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 class ConferenceController extends AbstractController
 {
     private EntityManagerInterface $entityManager;
+    private MessageBusInterface $bus;
 
     /**
      * @param EntityManagerInterface $entityManager
+     * @param MessageBusInterface $bus
      */
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, MessageBusInterface $bus)
     {
         $this->entityManager = $entityManager;
+        $this->bus = $bus;
     }
 
     /**
@@ -48,13 +53,12 @@ class ConferenceController extends AbstractController
      * @param Request $request
      * @param ConferenceRepository $conferenceRepository
      * @param CommentRepository $commentRepository
-     * @param SpamChecker $spamChecker
      * @param string $photoDir
      * @return Response
      */
     #[Route('/conference/{slug}', name: 'conference')]
     public function show(string            $slug, Request $request, ConferenceRepository $conferenceRepository,
-                         CommentRepository $commentRepository, SpamChecker $spamChecker, string $photoDir): Response
+                         CommentRepository $commentRepository, string $photoDir): Response
     {
         $conference = $conferenceRepository->findOneBy(['slug' => $slug]);
         if (!$conference) {
@@ -81,14 +85,15 @@ class ConferenceController extends AbstractController
 
             $this->entityManager->persist($comment);
 
-            try {
+            $context = [
+                'user_ip' => $request->getClientIp(),
+                'user_agent' => $request->headers->get('user-agent'),
+                'referrer' => $request->headers->get('referer'),
+                'permalink' => $request->getUri(),
+            ];
+
+            /*try {
                 // проверка на спам
-                $context = [
-                    'user_ip' => $request->getClientIp(),
-                    'user_agent' => $request->headers->get('user-agent'),
-                    'referrer' => $request->headers->get('referer'),
-                    'permalink' => $request->getUri(),
-                ];
                 if (2 === $spamChecker->getSpamScore($comment, $context)) {
                     throw new \RuntimeException('Blatant spam, go away!');
                 }
@@ -97,9 +102,13 @@ class ConferenceController extends AbstractController
                     'error',
                     $e->getMessage()
                 );
-            }
+            }*/
 
             $this->entityManager->flush();
+
+            // отправляем проверку сообщения на спам в очередь
+            $this->bus->dispatch(new CommentMessage($comment->getId(), $context));
+
             $this->addFlash(
                 'success',
                 'Comment was saved'
